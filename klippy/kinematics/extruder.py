@@ -72,6 +72,12 @@ class PrinterExtruder:
         gcode.register_mux_command("ACTIVATE_EXTRUDER", "EXTRUDER",
                                    self.name, self.cmd_ACTIVATE_EXTRUDER,
                                    desc=self.cmd_ACTIVATE_EXTRUDER_help)
+        gcode.register_mux_command("SET_EXTRUDER_STEP_DISTANCE_MM", "EXTRUDER",
+                                   self.name, self.cmd_SET_EXTRUDER_STEP_DISTANCE_MM,
+                                   desc=self.cmd_SET_EXTRUDER_STEP_DISTANCE_MM_help)
+        gcode.register_mux_command("SET_EXTRUDER_STEP_DISTANCE_STEPS", "EXTRUDER",
+                                   self.name, self.cmd_SET_EXTRUDER_STEP_DISTANCE_STEPS,
+                                   desc=self.cmd_SET_EXTRUDER_STEP_DISTANCE_STEPS_help)
     def update_move_time(self, flush_time):
         self.trapq_free_moves(self.trapq, flush_time)
     def _set_pressure_advance(self, pressure_advance, smooth_time):
@@ -87,6 +93,24 @@ class PrinterExtruder:
         self.extruder_set_smooth_time(self.sk_extruder, new_smooth_time)
         self.pressure_advance = pressure_advance
         self.pressure_advance_smooth_time = smooth_time
+    cmd_SET_EXTRUDER_STEP_DISTANCE_MM_help = "Set extruder step distance using mm extruded per step"
+    def cmd_SET_EXTRUDER_STEP_DISTANCE_MM(self,params):
+        gcode = self.printer.lookup_object('gcode')
+        step_distance = gcode.get_float(
+            'DISTANCE', params, self.pressure_advance, minval=0.)
+        heater_name = self.gcode.get_str('EXTRUDER', params)
+        configfile = self.printer.lookup_object('configfile')
+        configfile.set(heater_name, 'step_distance', "%.16f" % (step_distance,))
+        self.stepper.step_dist = step_distance
+    cmd_SET_EXTRUDER_STEP_DISTANCE_STEPS_help = "Set extruder step distance using steps per mm"
+    def cmd_SET_EXTRUDER_STEP_DISTANCE_STEPS(self,params):
+        gcode = self.printer.lookup_object('gcode')
+        heater_name = self.gcode.get_str('EXTRUDER', params)
+        steps = self.gcode.get_int('STEPS', params, 0)
+        step_distance = 1/steps
+        configfile = self.printer.lookup_object('configfile')
+        configfile.set(heater_name, 'step_distance', "%.16f" % (step_distance,))
+        self.stepper.step_dist = step_distance
     def get_status(self, eventtime):
         return dict(self.heater.get_status(eventtime),
                     pressure_advance=self.pressure_advance,
